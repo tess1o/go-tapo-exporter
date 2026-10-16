@@ -20,6 +20,10 @@ func (s SmartPlug) GetEnergyUsage() (*tapo.EnergyUsageResponse, error) {
 	return s.Client.GetEnergyUsage(context.Background())
 }
 
+func (s SmartPlug) GetEmeterData() (*tapo.EmeterData, error) {
+	return s.Client.GetEmeterData(context.Background())
+}
+
 func initSmartPlugs(devices []*SmartPlug, username string, password string, exporter *PrometheusExporter) {
 	for i := range devices {
 		devices[i].Exporter = exporter
@@ -65,5 +69,18 @@ func handleSmartPlug(device *SmartPlug) {
 		var params map[string]interface{}
 		json.Unmarshal(d, &params)
 		device.Exporter.HandleSmartPlug(context.Background(), device, params)
+		handleSmartPlugEmeter(device)
 	}
+}
+
+func handleSmartPlugEmeter(device *SmartPlug) {
+	r, err := device.GetEmeterData()
+	if err != nil {
+		slog.Warn("Error getting emeter data", "device", device.Name, "error", err)
+		return
+	}
+	d, _ := json.Marshal(r.Result)
+	var params map[string]interface{}
+	json.Unmarshal(d, &params)
+	device.Exporter.HandleSmartPlug(context.Background(), device, params)
 }
